@@ -14,10 +14,15 @@
 
 	<ItemGroup>
 		<Content Remove="Components\General\NavMenu.razor" />
+		<Content Remove="publish\**\*" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<None Remove="Components\General\NavMenu.razor.css" />
+		<None Remove="publish\**\*" />
+		<Compile Remove="publish\**\*" />
+		<EmbeddedResource Remove="publish\**\*" />
+		<AdditionalFiles Remove="publish\**\*" />
 	</ItemGroup>
 
 	<ItemGroup>
