@@ -875,13 +875,10 @@ namespace AzureNamingTool.Services
                 {
                     bool nameallowed = true;
                     
-                    // Check if Azure validation is enabled - if so, skip internal duplicate check
-                    // as Azure validation will handle conflict resolution
-                    var configData = ConfigurationHelper.GetConfigurationData();
-                    var azureValidationEnabled = configData?.AzureTenantNameValidationEnabled?.Equals("True", StringComparison.OrdinalIgnoreCase) == true;
-                    
+                    // Internal duplicate handling is based on generated-name history and should
+                    // run regardless of Azure tenant validation settings.
                     bool nameexists = await ConfigurationHelper.CheckIfGeneratedNameExists(name, _generatedNamesService);
-                    if (nameexists && !azureValidationEnabled)
+                    if (nameexists)
                     {
                         // Check if the request contains Resource Instance is a selected componoent
                         if (!String.IsNullOrEmpty(GeneralHelper.GetPropertyValue(request, "ResourceInstance")?.ToString()))
@@ -908,8 +905,9 @@ namespace AzureNamingTool.Services
                                         {
                                             newinstance = "0" + newinstance;
                                         }
-                                        // Replace the new instance in the original name
-                                        name = originalname.Replace(originalinstance, newinstance);
+                                        // Replace only the trailing instance segment to avoid mutating
+                                        // other numeric portions of the generated name.
+                                        name = Regex.Replace(originalname, Regex.Escape(originalinstance) + "$", newinstance);
                                         // Increase the counter
                                         i += 1;
                                     }
