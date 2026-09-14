@@ -9,6 +9,55 @@ namespace AzureNamingTool.UnitTests.Helpers;
 
 public class ValidationHelperTests
 {
+    [Fact]
+    public void RepositoryDefaults_ShouldHaveConsistentResourceTypeMetadata()
+    {
+        var resourceTypes = LoadRepositoryResourceTypes();
+
+        resourceTypes.Select(x => x.Id).Should().BeEquivalentTo(
+            Enumerable.Range(1, resourceTypes.Count),
+            options => options.WithStrictOrdering());
+        resourceTypes
+            .Select(x => $"{x.Resource}|{x.Property}")
+            .Should().OnlyHaveUniqueItems();
+        resourceTypes
+            .Where(x => !string.IsNullOrWhiteSpace(x.Regx))
+            .Should().OnlyContain(x => TryCompileRegex(x.Regx));
+        resourceTypes
+            .Where(x => !string.IsNullOrWhiteSpace(x.StaticValues))
+            .SelectMany(x => x.StaticValues.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(value => (ResourceType: x, Value: value)))
+            .Should().OnlyContain(x => Regex.IsMatch(x.Value, x.ResourceType.Regx));
+    }
+
+    [Theory]
+    [InlineData("App/containerApps", "my-container-app", true)]
+    [InlineData("App/containerApps", "MyContainerApp", false)]
+    [InlineData("Network/privateEndpoints", "private.endpoint_01", true)]
+    [InlineData("Network/privateEndpoints", "-private-endpoint", false)]
+    [InlineData("Synapse/workspaces", "analytics-01", true)]
+    [InlineData("Synapse/workspaces", "analytics-ondemand", false)]
+    [InlineData("Storage/storageAccounts/blobServices", "default", true)]
+    [InlineData("Storage/storageAccounts/blobServices", "not-default", false)]
+    [InlineData("AppConfiguration/configurationStores", "config--store", true)]
+    [InlineData("AppConfiguration/configurationStores", "config---store", false)]
+    [InlineData("MobileNetwork/mobileNetworks/services", "default", false)]
+    [InlineData("MobileNetwork/mobileNetworks/services", "voice-service", true)]
+    [InlineData("NetworkCloud/clusters/metricsConfigurations", "default", true)]
+    [InlineData("NetworkCloud/clusters/metricsConfigurations", "metrics", false)]
+    [InlineData("Security/informationProtectionPolicies", "effective", true)]
+    [InlineData("Security/informationProtectionPolicies", "default", false)]
+    public void RepositoryDefaults_ShouldEnforceCurrentAzureNameRules(
+        string resourceName,
+        string candidate,
+        bool expectedValid)
+    {
+        var resourceType = LoadRepositoryResourceTypes()
+            .Should().ContainSingle(x => x.Resource == resourceName).Subject;
+
+        Regex.IsMatch(candidate, resourceType.Regx).Should().Be(expectedValid);
+    }
+
     [Theory]
     [InlineData("Subscription/subscriptions")]
     [InlineData("Management/managementGroups")]
@@ -44,6 +93,27 @@ public class ValidationHelperTests
         var resourceType = resourceTypes.Should().ContainSingle(x => x.Resource == resourceName).Subject;
 
         Regex.IsMatch(candidate, resourceType.Regx).Should().Be(expectedValid);
+    }
+
+    private static List<ResourceType> LoadRepositoryResourceTypes()
+    {
+        var repositoryPath = Path.Combine(AppContext.BaseDirectory, "repository", "resourcetypes.json");
+        return JsonSerializer.Deserialize<List<ResourceType>>(
+            File.ReadAllText(repositoryPath),
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+    }
+
+    private static bool TryCompileRegex(string pattern)
+    {
+        try
+        {
+            _ = new Regex(pattern);
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 
     [Theory]
