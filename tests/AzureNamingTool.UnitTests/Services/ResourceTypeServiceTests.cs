@@ -169,4 +169,59 @@ public class ResourceTypeServiceTests
         savedItems!.Should().HaveCount(1);
         savedItems![0].Id.Should().Be(1);
     }
+
+    [Fact]
+    public async Task UpdateTypeComponentsAsync_ShouldSaveAllResourceTypesOnce()
+    {
+        var resourceTypes = new List<ResourceType>
+        {
+            new() { Id = 1, Resource = "Type1", Optional = "", Exclude = "" },
+            new() { Id = 2, Resource = "Type2", Optional = "ResourceOrg", Exclude = "" }
+        };
+        _mockCoordinator
+            .Setup(coordinator => coordinator.GetComponentForTypeValidationAsync(7))
+            .ReturnsAsync(new ServiceResponse
+            {
+                Success = true,
+                ResponseObject = new ResourceComponent { Id = 7, Name = "ResourceUnitDept" }
+            });
+        _mockRepository.Setup(repository => repository.GetAllAsync()).ReturnsAsync(resourceTypes);
+        _mockRepository
+            .Setup(repository => repository.SaveAllAsync(It.IsAny<IEnumerable<ResourceType>>()))
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.UpdateTypeComponentsAsync("optional-add", 7);
+
+        result.Success.Should().BeTrue();
+        resourceTypes.Should().OnlyContain(type => type.Optional.Split(',').Contains("UnitDept"));
+        _mockRepository.Verify(
+            repository => repository.SaveAllAsync(It.Is<IEnumerable<ResourceType>>(items => items.Count() == 2)),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateTypeComponentsAsync_ShouldNotSave_WhenResourceTypesAreAlreadyCurrent()
+    {
+        var resourceTypes = new List<ResourceType>
+        {
+            new() { Id = 1, Resource = "Type1", Optional = "UnitDept", Exclude = "" },
+            new() { Id = 2, Resource = "Type2", Optional = "ResourceOrg,UnitDept", Exclude = "" }
+        };
+        _mockCoordinator
+            .Setup(coordinator => coordinator.GetComponentForTypeValidationAsync(7))
+            .ReturnsAsync(new ServiceResponse
+            {
+                Success = true,
+                ResponseObject = new ResourceComponent { Id = 7, Name = "ResourceUnitDept" }
+            });
+        _mockRepository.Setup(repository => repository.GetAllAsync()).ReturnsAsync(resourceTypes);
+
+        var result = await _service.UpdateTypeComponentsAsync("optional-add", 7);
+
+        result.Success.Should().BeTrue();
+        ((string)result.ResponseObject!).Should().Be("Resource Types already up to date.");
+        _mockRepository.Verify(
+            repository => repository.SaveAllAsync(It.IsAny<IEnumerable<ResourceType>>()),
+            Times.Never);
+    }
 }

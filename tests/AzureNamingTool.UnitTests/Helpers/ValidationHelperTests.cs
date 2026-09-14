@@ -1,12 +1,51 @@
 using AzureNamingTool.Helpers;
 using AzureNamingTool.Models;
 using FluentAssertions;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace AzureNamingTool.UnitTests.Helpers;
 
 public class ValidationHelperTests
 {
+    [Theory]
+    [InlineData("Subscription/subscriptions")]
+    [InlineData("Management/managementGroups")]
+    public void RepositoryDefaults_ShouldConfigureTenantLevelNameValidation(string resourceName)
+    {
+        var repositoryPath = Path.Combine(AppContext.BaseDirectory, "repository", "resourcetypes.json");
+        var resourceTypes = JsonSerializer.Deserialize<List<ResourceType>>(
+            File.ReadAllText(repositoryPath),
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        var resourceType = resourceTypes.Should().ContainSingle(x => x.Resource == resourceName).Subject;
+
+        resourceType.LengthMin.Should().NotBeNullOrWhiteSpace();
+        resourceType.LengthMax.Should().NotBeNullOrWhiteSpace();
+        resourceType.Regx.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Theory]
+    [InlineData("Subscription/subscriptions", "Contoso_Azure-(Prod).01", true)]
+    [InlineData("Subscription/subscriptions", "Contoso/Prod", false)]
+    [InlineData("Management/managementGroups", "Contoso_Prod-(01)", true)]
+    [InlineData("Management/managementGroups", ".Contoso", false)]
+    [InlineData("Management/managementGroups", "Contoso.", false)]
+    public void RepositoryDefaults_ShouldEnforceTenantLevelNameRules(
+        string resourceName,
+        string candidate,
+        bool expectedValid)
+    {
+        var repositoryPath = Path.Combine(AppContext.BaseDirectory, "repository", "resourcetypes.json");
+        var resourceTypes = JsonSerializer.Deserialize<List<ResourceType>>(
+            File.ReadAllText(repositoryPath),
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var resourceType = resourceTypes.Should().ContainSingle(x => x.Resource == resourceName).Subject;
+
+        Regex.IsMatch(candidate, resourceType.Regx).Should().Be(expectedValid);
+    }
+
     [Theory]
     [InlineData("Test1234", true)]
     [InlineData("Password1", true)]
