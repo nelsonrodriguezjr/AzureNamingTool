@@ -63,4 +63,8 @@
 		<Folder Include="Properties\PublishProfiles\" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<InternalsVisibleTo Include="AzureNamingTool.UnitTests" />
+	</ItemGroup>
+
 </Project>
