@@ -354,6 +354,7 @@ public class SQLiteConfigurationRepositoryTests : IDisposable
         await _repository.SaveAllAsync(replacementData);
 
         var allItems = await _dbContext.ResourceTypes.AsNoTracking().OrderBy(x => x.Id).ToListAsync();
+        allItems.Select(x => x.Id).Should().Equal(1, 2);
         allItems.Select(x => x.Resource).Should().Equal("new1", "new2");
         _cacheServiceMock.Verify(x => x.InvalidateCacheObject(It.IsAny<string>()), Times.Once);
     }

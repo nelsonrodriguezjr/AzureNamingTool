@@ -882,10 +882,10 @@
                                 resourceType.Description = itemDescription;
                                 resourceType.Optional = String.Join(",", resourceComponents
                                     .Where(x => x.Name != "ResourceType")
-                                    .Select(x => GeneralHelper.NormalizeName(x.Name, true))
+                                    .Select(x => GeneralHelper.NormalizeName(x.Name, false))
                                     .Where(optionalComponents.Contains));
                                 resourceType.Exclude = String.Join(",", resourceComponents
-                                    .Select(x => GeneralHelper.NormalizeName(x.Name, true))
+                                    .Select(x => GeneralHelper.NormalizeName(x.Name, false))
                                     .Where(excludedComponents.Contains));
                                 resourceType.ApplyDelimiter = itemApplyDelimiter;
                                 if (!String.IsNullOrEmpty(itemMinLength.ToString()))

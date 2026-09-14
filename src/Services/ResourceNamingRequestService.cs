@@ -860,6 +860,7 @@ namespace AzureNamingTool.Services
                     ResourceType = resourceType.ShortName,
                     Name = name
                 };
+                string nameBeforeValidation = name;
                 serviceResponse = await _resourceTypeService.ValidateResourceTypeNameAsync(validateNameRequest);
                 if (serviceResponse.Success)
                 {
@@ -870,6 +871,24 @@ namespace AzureNamingTool.Services
                         if (!String.IsNullOrEmpty(validateNameResponse.Name))
                         {
                             name = validateNameResponse.Name;
+                            if (resourceInstanceStartIndex >= 0 && name.Length != nameBeforeValidation.Length)
+                            {
+                                string nameWithoutDelimiter = nameBeforeValidation.Replace(resourceDelimiter.Delimiter, "");
+                                if (String.Equals(name, nameWithoutDelimiter, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    int originalStartIndex = resourceInstanceStartIndex;
+                                    resourceInstanceStartIndex = nameBeforeValidation[..originalStartIndex]
+                                        .Replace(resourceDelimiter.Delimiter, "").Length;
+                                    resourceInstanceLength = nameBeforeValidation
+                                        .Substring(originalStartIndex, resourceInstanceLength)
+                                        .Replace(resourceDelimiter.Delimiter, "").Length;
+                                }
+                                else
+                                {
+                                    resourceInstanceStartIndex = -1;
+                                    resourceInstanceLength = 0;
+                                }
+                            }
                         }
                         if (!String.IsNullOrEmpty(validateNameResponse.Message))
                         {
@@ -912,11 +931,29 @@ namespace AzureNamingTool.Services
                                         {
                                             newinstance = "0" + newinstance;
                                         }
-                                        name = ReplaceResourceInstance(
+                                        string incrementedName = ReplaceResourceInstance(
                                             originalname,
                                             resourceInstanceStartIndex,
                                             resourceInstanceLength,
                                             newinstance);
+                                        serviceResponse = await _resourceTypeService.ValidateResourceTypeNameAsync(new ValidateNameRequest
+                                        {
+                                            ResourceTypeId = resourceType.Id,
+                                            ResourceType = resourceType.ShortName,
+                                            Name = incrementedName
+                                        });
+                                        ValidateNameResponse? incrementedNameResponse =
+                                            serviceResponse.ResponseObject as ValidateNameResponse;
+                                        if (!serviceResponse.Success || incrementedNameResponse is null || !incrementedNameResponse.Valid)
+                                        {
+                                            resourceNameResponse.ResourceName = "***RESOURCE NAME NOT GENERATED***";
+                                            resourceNameResponse.Message = incrementedNameResponse?.Message
+                                                ?? "The auto-incremented resource name is invalid.";
+                                            return resourceNameResponse;
+                                        }
+                                        name = String.IsNullOrEmpty(incrementedNameResponse.Name)
+                                            ? incrementedName
+                                            : incrementedNameResponse.Name;
                                         // Increase the counter
                                         i += 1;
                                     }

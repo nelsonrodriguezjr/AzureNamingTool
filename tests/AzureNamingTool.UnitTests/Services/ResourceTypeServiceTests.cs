@@ -193,7 +193,36 @@ public class ResourceTypeServiceTests
         var result = await _service.UpdateTypeComponentsAsync("optional-add", 7);
 
         result.Success.Should().BeTrue();
-        resourceTypes.Should().OnlyContain(type => type.Optional.Split(',').Contains("UnitDept"));
+        resourceTypes.Select(type => type.Optional).Should().Equal("UnitDept", "ResourceOrg,UnitDept");
+        _mockRepository.Verify(
+            repository => repository.SaveAllAsync(It.Is<IEnumerable<ResourceType>>(items => items.Count() == 2)),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateTypeComponentsAsync_ShouldPreserveExistingExcludeValues()
+    {
+        var resourceTypes = new List<ResourceType>
+        {
+            new() { Id = 1, Resource = "Type1", Optional = "", Exclude = "" },
+            new() { Id = 2, Resource = "Type2", Optional = "", Exclude = "ResourceOrg" }
+        };
+        _mockCoordinator
+            .Setup(coordinator => coordinator.GetComponentForTypeValidationAsync(7))
+            .ReturnsAsync(new ServiceResponse
+            {
+                Success = true,
+                ResponseObject = new ResourceComponent { Id = 7, Name = "ResourceUnitDept" }
+            });
+        _mockRepository.Setup(repository => repository.GetAllAsync()).ReturnsAsync(resourceTypes);
+        _mockRepository
+            .Setup(repository => repository.SaveAllAsync(It.IsAny<IEnumerable<ResourceType>>()))
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.UpdateTypeComponentsAsync("exclude-add", 7);
+
+        result.Success.Should().BeTrue();
+        resourceTypes.Select(type => type.Exclude).Should().Equal("UnitDept", "ResourceOrg,UnitDept");
         _mockRepository.Verify(
             repository => repository.SaveAllAsync(It.Is<IEnumerable<ResourceType>>(items => items.Count() == 2)),
             Times.Once);

@@ -47,6 +47,9 @@ public class ValidationHelperTests
     [InlineData("NetworkCloud/clusters/metricsConfigurations", "metrics", false)]
     [InlineData("Security/informationProtectionPolicies", "effective", true)]
     [InlineData("Security/informationProtectionPolicies", "default", false)]
+    [InlineData("AppPlatform/spring", "spring-app", true)]
+    [InlineData("AppPlatform/spring", "app-", false)]
+    [InlineData("AppPlatform/spring", "----", false)]
     public void RepositoryDefaults_ShouldEnforceCurrentAzureNameRules(
         string resourceName,
         string candidate,
@@ -76,15 +79,16 @@ public class ValidationHelperTests
     }
 
     [Theory]
-    [InlineData("Subscription/subscriptions", "Contoso_Azure-(Prod).01", true)]
-    [InlineData("Subscription/subscriptions", "Contoso/Prod", false)]
-    [InlineData("Management/managementGroups", "Contoso_Prod-(01)", true)]
-    [InlineData("Management/managementGroups", ".Contoso", false)]
-    [InlineData("Management/managementGroups", "Contoso.", false)]
+    [InlineData("Subscription/subscriptions", "Contoso_Azure-(Prod).01", true, "Contoso_Azure-(Prod).01")]
+    [InlineData("Subscription/subscriptions", "Contoso/Prod", false, "Contoso/Prod")]
+    [InlineData("Management/managementGroups", "Contoso_Prod-(01)", true, "Contoso_Prod-(01)")]
+    [InlineData("Management/managementGroups", ".Contoso", false, ".Contoso")]
+    [InlineData("Management/managementGroups", "Contoso.", false, "Contoso.")]
     public void RepositoryDefaults_ShouldEnforceTenantLevelNameRules(
         string resourceName,
         string candidate,
-        bool expectedValid)
+        bool expectedValid,
+        string expectedName)
     {
         var repositoryPath = Path.Combine(AppContext.BaseDirectory, "repository", "resourcetypes.json");
         var resourceTypes = JsonSerializer.Deserialize<List<ResourceType>>(
@@ -92,7 +96,22 @@ public class ValidationHelperTests
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         var resourceType = resourceTypes.Should().ContainSingle(x => x.Resource == resourceName).Subject;
 
-        Regex.IsMatch(candidate, resourceType.Regx).Should().Be(expectedValid);
+        var result = ValidationHelper.ValidateGeneratedName(resourceType, candidate, "-");
+
+        result.Valid.Should().Be(expectedValid);
+        result.Name.Should().Be(expectedName);
+    }
+
+    [Fact]
+    public void RepositoryDefaults_ShouldEnforceSubscriptionLengthLimit()
+    {
+        var resourceType = LoadRepositoryResourceTypes()
+            .Should().ContainSingle(x => x.Resource == "Subscription/subscriptions").Subject;
+
+        ValidationHelper.ValidateGeneratedName(resourceType, new string('a', 50), "")
+            .Valid.Should().BeTrue();
+        ValidationHelper.ValidateGeneratedName(resourceType, new string('a', 51), "")
+            .Valid.Should().BeFalse();
     }
 
     private static List<ResourceType> LoadRepositoryResourceTypes()
@@ -710,4 +729,3 @@ public class ValidationHelperTests
 
     #endregion
 }
-

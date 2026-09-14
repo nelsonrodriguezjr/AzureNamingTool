@@ -6050,14 +6050,14 @@
     "ShortName": "subcr",
     "scope": "tenant",
     "lengthMin": "1",
-    "lengthMax": "90",
+    "lengthMax": "50",
     "validText": "Alphanumerics, underscores, parentheses, hyphens, periods, and unicode characters that match the regex documentation.",
     "invalidText": "",
     "invalidCharacters": "",
     "invalidCharactersStart": "",
     "invalidCharactersEnd": "",
     "invalidCharactersConsecutive": "",
-    "regx": "^[\\p{L}\\p{M}\\p{N}_().-]{1,90}$",
+    "regx": "^[A-Z\\p{L}\\p{M}\\p{N}_().-]{1,50}$",
     "staticValues": ""
   },
   {
@@ -6741,7 +6741,7 @@
     "invalidCharactersStart": "",
     "invalidCharactersEnd": "",
     "invalidCharactersConsecutive": "",
-    "regx": "^[a-z0-9-]{4,32}$",
+    "regx": "^[a-z][a-z0-9-]{2,30}[a-z0-9]$",
     "staticValues": ""
   },
   {
