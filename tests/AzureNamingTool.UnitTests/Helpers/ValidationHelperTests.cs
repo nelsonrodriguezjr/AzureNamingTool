@@ -10,6 +10,22 @@ namespace AzureNamingTool.UnitTests.Helpers;
 public class ValidationHelperTests
 {
     [Fact]
+    public void RepositoryDefaults_ShouldHaveConsistentResourceLocationMetadata()
+    {
+        var resourceLocations = LoadRepositoryResourceLocations();
+
+        resourceLocations.Select(x => x.Id).Should().BeEquivalentTo(
+            Enumerable.Range(1, resourceLocations.Count).Select(x => (long)x),
+            options => options.WithStrictOrdering());
+        resourceLocations.Select(x => x.Name).Should().OnlyHaveUniqueItems();
+        resourceLocations.Select(x => x.ShortName).Should().OnlyHaveUniqueItems();
+        resourceLocations.Should().ContainSingle(x => x.Name == "Denmark East" && x.ShortName == "dke");
+        resourceLocations.Should().ContainSingle(x => x.Name == "India South Central" && x.ShortName == "insc");
+        resourceLocations.Should().ContainSingle(x => x.Name == "South India" && x.ShortName == "ins");
+        resourceLocations.Should().ContainSingle(x => x.Name == "China East 3" && x.ShortName == "cne3");
+    }
+
+    [Fact]
     public void RepositoryDefaults_ShouldHaveConsistentResourceTypeMetadata()
     {
         var resourceTypes = LoadRepositoryResourceTypes();
@@ -118,6 +134,14 @@ public class ValidationHelperTests
     {
         var repositoryPath = Path.Combine(AppContext.BaseDirectory, "repository", "resourcetypes.json");
         return JsonSerializer.Deserialize<List<ResourceType>>(
+            File.ReadAllText(repositoryPath),
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+    }
+
+    private static List<ResourceLocation> LoadRepositoryResourceLocations()
+    {
+        var repositoryPath = Path.Combine(AppContext.BaseDirectory, "repository", "resourcelocations.json");
+        return JsonSerializer.Deserialize<List<ResourceLocation>>(
             File.ReadAllText(repositoryPath),
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
